@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Family Tree Editor</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <section id="login-view" class="login-box" hidden>
+    <h1>Family Tree Editor</h1>
+    <form id="login-form">
+      <div>
+        <label for="password">Editor password</label>
+        <input id="password" type="password" autocomplete="current-password" required autofocus>
+      </div>
+      <p class="error" id="login-error" role="alert"></p>
+      <button class="primary" type="submit">Log in</button>
+      <a href="/">← Back to the tree</a>
+    </form>
+  </section>
+
+  <div id="editor-view" hidden>
+    <header class="site-header">
+      <form class="title-edit" id="title-form">
+        <input id="site-title" aria-label="Site title" maxlength="200" required>
+        <button type="submit">Rename</button>
+      </form>
+      <div class="toolbar">
+        <a class="button" href="/" target="_blank" rel="noopener">View tree ↗</a>
+        <button id="export-btn" type="button">Export JSON</button>
+        <button id="import-btn" type="button">Import JSON</button>
+        <input id="import-file" type="file" accept="application/json,.json" hidden>
+        <button id="logout-btn" type="button">Log out</button>
+      </div>
+    </header>
+
+    <div class="admin-layout">
+      <aside class="panel people-panel">
+        <button class="primary" id="new-btn" type="button">+ Add person</button>
+        <input id="filter" type="search" placeholder="Filter people…" aria-label="Filter people">
+        <span class="count" id="count"></span>
+        <ul class="people-list" id="people-list"></ul>
+      </aside>
+
+      <main class="panel editor">
+        <h2 id="form-heading">Add a person</h2>
+        <div class="quick-actions" id="quick-actions" hidden>
+          <button type="button" id="add-child">+ Add child</button>
+          <button type="button" id="add-spouse">+ Add spouse</button>
+          <button type="button" id="add-parent">+ Add parent</button>
+        </div>
+        <p class="muted" id="pending-note" hidden></p>
+        <form id="person-form" novalidate>
+          <div class="form-grid">
+            <div><label for="firstName">First name</label><input id="firstName" name="firstName" maxlength="100"></div>
+            <div><label for="lastName">Last name</label><input id="lastName" name="lastName" maxlength="100"></div>
+            <div><label for="maidenName">Birth surname (if different)</label><input id="maidenName" name="maidenName" maxlength="100"></div>
+            <div>
+              <label for="gender">Gender</label>
+              <select id="gender" name="gender">
+                <option value="">Unspecified</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div><label for="birthDate">Birth date</label><input id="birthDate" name="birthDate" maxlength="40" placeholder="e.g. 1921-03-14 or c. 1890"></div>
+            <div><label for="birthPlace">Birthplace</label><input id="birthPlace" name="birthPlace" maxlength="200"></div>
+            <div><label for="deathDate">Death date</label><input id="deathDate" name="deathDate" maxlength="40" placeholder="Leave blank if living"></div>
+            <div><label for="deathPlace">Place of death</label><input id="deathPlace" name="deathPlace" maxlength="200"></div>
+            <div class="full"><label for="photoUrl">Photo URL</label><input id="photoUrl" name="photoUrl" maxlength="2000" placeholder="https://…"></div>
+            <div class="full"><label for="bio">Biography / notes</label><textarea id="bio" name="bio" maxlength="5000"></textarea></div>
+            <div class="full">
+              <label for="parent-add">Parents (up to two)</label>
+              <div class="chips" id="parent-chips"></div>
+              <div class="chip-add">
+                <select id="parent-add"></select>
+                <button type="button" id="parent-add-btn">Add</button>
+              </div>
+            </div>
+            <div class="full">
+              <label for="spouse-add">Spouses / partners</label>
+              <div class="chips" id="spouse-chips"></div>
+              <div class="chip-add">
+                <select id="spouse-add"></select>
+                <button type="button" id="spouse-add-btn">Add</button>
+              </div>
+            </div>
+          </div>
+          <p class="error" id="form-error" role="alert"></p>
+          <div class="form-actions">
+            <button class="primary" type="submit" id="save-btn">Save</button>
+            <button type="button" id="cancel-btn">Cancel</button>
+            <span class="spacer"></span>
+            <button class="danger" type="button" id="delete-btn" hidden>Delete</button>
+          </div>
+        </form>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="/common.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

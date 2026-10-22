@@ -1,0 +1,17 @@
+{
+  "title": "The Whitaker Family Tree",
+  "people": [
+    { "id": "p1", "firstName": "Harold", "lastName": "Whitaker", "gender": "male", "birthDate": "1921-03-14", "birthPlace": "Leeds, England", "deathDate": "1998-11-02", "deathPlace": "Toronto, Canada", "bio": "Carpenter who emigrated to Canada in 1952.", "parentIds": [], "spouseIds": ["p2"] },
+    { "id": "p2", "firstName": "Margaret", "lastName": "Whitaker", "maidenName": "Hall", "gender": "female", "birthDate": "1924-07-30", "birthPlace": "York, England", "deathDate": "2009-01-18", "deathPlace": "Toronto, Canada", "bio": "Schoolteacher and keen gardener.", "parentIds": [], "spouseIds": ["p1"] },
+    { "id": "p3", "firstName": "Robert", "lastName": "Whitaker", "gender": "male", "birthDate": "1949-05-02", "birthPlace": "Leeds, England", "parentIds": ["p1", "p2"], "spouseIds": ["p4"] },
+    { "id": "p4", "firstName": "Linda", "lastName": "Whitaker", "maidenName": "Moreau", "gender": "female", "birthDate": "1952-09-12", "birthPlace": "Montreal, Canada", "parentIds": [], "spouseIds": ["p3"] },
+    { "id": "p5", "firstName": "Susan", "lastName": "Patel", "maidenName": "Whitaker", "gender": "female", "birthDate": "1955-12-21", "birthPlace": "Toronto, Canada", "parentIds": ["p1", "p2"], "spouseIds": ["p6"] },
+    { "id": "p6", "firstName": "Anil", "lastName": "Patel", "gender": "male", "birthDate": "1953-02-08", "birthPlace": "Mumbai, India", "parentIds": [], "spouseIds": ["p5"] },
+    { "id": "p7", "firstName": "James", "lastName": "Whitaker", "gender": "male", "birthDate": "1978-08-19", "birthPlace": "Toronto, Canada", "parentIds": ["p3", "p4"], "spouseIds": [] },
+    { "id": "p8", "firstName": "Claire", "lastName": "Whitaker", "gender": "female", "birthDate": "1981-04-03", "birthPlace": "Toronto, Canada", "parentIds": ["p3", "p4"], "spouseIds": [] },
+    { "id": "p9", "firstName": "Priya", "lastName": "Patel", "gender": "female", "birthDate": "1984-06-27", "birthPlace": "Ottawa, Canada", "parentIds": ["p5", "p6"], "spouseIds": ["p10"] },
+    { "id": "p10", "firstName": "Daniel", "lastName": "Okafor", "gender": "male", "birthDate": "1982-10-10", "birthPlace": "Lagos, Nigeria", "parentIds": [], "spouseIds": ["p9"] },
+    { "id": "p11", "firstName": "Maya", "lastName": "Okafor", "gender": "female", "birthDate": "2012-01-15", "birthPlace": "Vancouver, Canada", "parentIds": ["p9", "p10"], "spouseIds": [] },
+    { "id": "p12", "firstName": "Theo", "lastName": "Okafor", "gender": "male", "birthDate": "2015-03-09", "birthPlace": "Vancouver, Canada", "parentIds": ["p9", "p10"], "spouseIds": [] }
+  ]
+}

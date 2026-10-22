@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Family Tree</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <div class="tree-page">
+    <header class="site-header">
+      <h1 id="title">Family Tree</h1>
+      <div class="toolbar">
+        <select id="root-select" aria-label="Show descendants of"></select>
+        <input id="search" type="search" placeholder="Search names…" aria-label="Search names">
+        <button id="zoom-out" class="icon" type="button" aria-label="Zoom out">−</button>
+        <button id="zoom-reset" class="icon" type="button" aria-label="Reset zoom">100%</button>
+        <button id="zoom-in" class="icon" type="button" aria-label="Zoom in">+</button>
+        <a class="button" href="/admin">Edit</a>
+      </div>
+    </header>
+    <div class="tree-layout">
+      <main class="tree-viewport" id="viewport">
+        <div class="tree" id="tree" aria-live="polite"></div>
+      </main>
+      <aside class="details" id="details" hidden aria-label="Person details"></aside>
+    </div>
+  </div>
+  <script src="/common.js"></script>
+  <script src="/tree.js"></script>
+</body>
+</html>

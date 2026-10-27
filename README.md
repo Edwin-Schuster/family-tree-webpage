@@ -17,9 +17,19 @@ dependencies: just Node.js 18+ and a JSON file for storage.
   use **Fit** to see a whole chart. The page remembers where you were, and
   "Open here next time" sets the person it starts on. Works in light and dark
   mode and on phones.
+  - **Calendar** – upcoming birthdays, wedding anniversaries and remembrance
+    days for the next twelve months.
+  - **How are we related?** – pick any two people for an answer like
+    "great-great-granddaughter" or "1st cousin once removed".
+
+  Each person's panel shows their photos, a life-events timeline (with
+  family moments such as children's births), and how they're related to you.
 - **Editor (`/admin`)** – log in to add, edit and delete people, link parents
-  and spouses, add a child, spouse or parent in one click, rename the site,
-  and import or export the whole tree as JSON.
+  and spouses, add a child, spouse or parent in one click, upload photos,
+  record life events (marriages, jobs, homes, military service, immigration,
+  burial…), rename the site, and import or export the whole tree as JSON.
+  **Check tree** lists impossible dates and missing details; **Backups**
+  restores the tree to an earlier point.
 
 ## Running it
 
@@ -34,12 +44,21 @@ Then open <http://localhost:3000> for the tree and <http://localhost:3000/admin>
 | `ADMIN_PASSWORD` | `changeme` (warns)   | Password for the editor                  |
 | `PORT`           | `3000`               | HTTP port                                |
 | `DATA_FILE`      | `data/family.json`   | Where the tree is saved                  |
+| `PHOTOS_DIR`     | `data/photos`        | Where uploaded photos are kept           |
+| `BACKUP_DIR`     | `data/backups`       | Where automatic backups are kept         |
 
 On first run, `data/family.json` is created from the fictional sample family in
 `data/family.sample.json`. To start empty, import a file containing
 `{"title": "My Family", "people": []}`, or delete people in the editor.
 `data/family.json` is git-ignored, so your real family data stays out of the
 repository. Back it up with **Export JSON** in the editor.
+
+## Backups
+
+A copy of `family.json` is saved to `data/backups/` before changes (at most
+every 10 minutes) and always before an import or restore; the newest 60 are
+kept. Restore one from **Backups** in the editor. When you host the site, back
+up the whole `data/` folder: it holds the tree, the photos and the backups.
 
 ## Data format
 
@@ -60,7 +79,12 @@ repository. Back it up with **Export JSON** in the editor.
       "photoUrl": "https://example.com/harold.jpg",
       "bio": "Carpenter who emigrated to Canada in 1952.",
       "parentIds": [],
-      "spouseIds": ["p2"]
+      "spouseIds": ["p2"],
+      "photos": ["/photos/1f0c…e2.jpg"],
+      "events": [
+        { "type": "Marriage", "date": "1947-06-21", "place": "York, England", "note": "", "spouseId": "p2" },
+        { "type": "Occupation", "date": "", "place": "Toronto", "note": "Carpenter", "spouseId": "" }
+      ]
     }
   ]
 }

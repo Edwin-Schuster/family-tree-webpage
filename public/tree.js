@@ -1,10 +1,11 @@
 'use strict';
 
 (() => {
-  const { el, fullName, lifespan, avatar, byBirth, indexPeople } = window.FT;
+  const { el, fullName, lifespan, avatar, byBirth, indexPeople, fmtDate, isoParts, yearNum, isLiving, coupleEvents, relationship, MONTHS } = window.FT;
   const $ = (id) => document.getElementById(id);
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const VIEWS = [['whole', 'Whole tree'], ['family', 'Family'], ['ancestors', 'Ancestors'], ['descendants', 'Descendants'], ['everyone', 'Everyone']];
+  const VIEWS = [['whole', 'Whole tree'], ['family', 'Family'], ['ancestors', 'Ancestors'], ['descendants', 'Descendants'], ['everyone', 'Everyone'],
+    ['calendar', 'Calendar'], ['relationships', 'How are we related?']];
   const CHART_VIEWS = ['whole', 'family', 'ancestors', 'descendants'];
 
   const viewport = $('viewport');
@@ -27,6 +28,7 @@
   let listFilter = '';
   let listSort = ['name', 1];
   let drawLines = null;
+  let relA = null, relB = null;
 
   // ---------- small helpers ----------
   const get = (id) => byId.get(id);
@@ -227,7 +229,11 @@
 
     const focusBox = pbox(f, { focus: true });
     const partners = partnersOf(f);
-    const partnerBoxes = partners.map((s) => pbox(s, { tag: f.spouseIds.includes(s.id) ? relWord('spouse', s) : 'Partner' }));
+    const partnerBoxes = partners.map((s) => {
+      const wed = coupleEvents(f, s).find((e) => e.type === 'Marriage');
+      const y = wed && yearNum(wed.date);
+      return pbox(s, { tag: (f.spouseIds.includes(s.id) ? relWord('spouse', s) : 'Partner') + (y ? ` · m. ${y}` : '') });
+    });
     const gen0 = [];
     const sibBoxes = [];
     for (const p of [...siblingsOf(f), f].sort(byBirth)) {
@@ -363,6 +369,80 @@
     return { title: 'Whole tree', hint: `Everyone, from each family's earliest ancestor · ${people.length} people · use Fit or search to find your way`, chart };
   }
 
+  function personSelect(id, value, onchange) {
+    return el('select', { id, onchange },
+      [...people].sort((a, b) => fullName(a).localeCompare(fullName(b)))
+        .map((p) => el('option', { value: p.id, selected: p.id === value }, `${fullName(p)}${lifespan(p) ? ` (${lifespan(p)})` : ''}`)));
+  }
+
+  function relationshipsView() {
+    if (!byId.has(relA)) relA = byId.has(store.read('ft-start')) ? store.read('ft-start') : focusId;
+    if (!byId.has(relB) || relB === relA) relB = selectedId && selectedId !== relA ? selectedId : (people.find((p) => p.id !== relA) || {}).id;
+    const A = get(relA), B = get(relB);
+    const r = relationship(A, B, { byId, children });
+    const commons = (r.commons || []).map(get).filter(Boolean);
+    const sentence = r.none ? [el('strong', {}, fullName(A)), ` is not connected to ${fullName(B)} in this tree.`]
+      : r.far ? [el('strong', {}, fullName(A)), ` is related to ${fullName(B)} by marriage.`]
+        : [el('strong', {}, fullName(A)), ` is ${fullName(B)}’s `, el('strong', {}, r.word), '.'];
+    const card = el('div', { className: 'rel-card' },
+      el('div', { className: 'rel-pick' },
+        el('label', { htmlFor: 'rel-a' }, 'This person'), personSelect('rel-a', relA, (e) => { relA = e.target.value; renderView(false); })),
+      el('button', { type: 'button', className: 'swap', 'aria-label': 'Swap the two people', onclick: () => { [relA, relB] = [relB, relA]; renderView(false); } }, '⇅ Swap'),
+      el('div', { className: 'rel-pick' },
+        el('label', { htmlFor: 'rel-b' }, 'is related to'), personSelect('rel-b', relB, (e) => { relB = e.target.value; renderView(false); })),
+      el('p', { className: 'rel-answer', 'aria-live': 'polite' }, sentence),
+      commons.length && r.da > 0 && r.db > 0 ? el('p', { className: 'muted' }, `Common ancestor${commons.length > 1 ? 's' : ''}: ${commons.map(fullName).join(' and ')}`) : null,
+      el('div', { className: 'goto' },
+        el('button', { type: 'button', onclick: () => go(A.id, 'family') }, `${(A.firstName || fullName(A)).replace(/\s*"[^"]*"/, '')}’s family`),
+        el('button', { type: 'button', onclick: () => go(B.id, 'family') }, `${(B.firstName || fullName(B)).replace(/\s*"[^"]*"/, '')}’s family`)));
+    drawLines = null;
+    return { title: 'How are we related?', hint: 'Pick any two people. Click “Open here next time” on someone to make them the starting choice.', chart: card };
+  }
+
+  function calendarView() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const nextDate = (m, d) => {
+      let t = new Date(today.getFullYear(), m - 1, d);
+      if (t < today) t = new Date(today.getFullYear() + 1, m - 1, d);
+      return t;
+    };
+    const items = [];
+    const weddings = new Set();
+    for (const p of people) {
+      const b = isoParts(p.birthDate);
+      if (b && isLiving(p)) { const t = nextDate(b.m, b.d); items.push({ t, p, kind: 'Birthday', cls: 'b', what: `Turns ${t.getFullYear() - b.y}` }); }
+      const d = isoParts(p.deathDate);
+      if (d) { const t = nextDate(d.m, d.d); items.push({ t, p, kind: 'Remembrance', cls: 'r', what: `${t.getFullYear() - d.y} years since ${p.firstName || fullName(p)} died` }); }
+      for (const e of p.events || []) {
+        const m = e.type === 'Marriage' && isoParts(e.date);
+        if (!m) continue;
+        const s = get(e.spouseId);
+        const key = `${[p.id, e.spouseId].sort().join('|')}|${e.date}`;
+        if (weddings.has(key)) continue; // a wedding recorded on both partners counts once
+        weddings.add(key);
+        const t = nextDate(m.m, m.d);
+        items.push({ t, p, kind: 'Anniversary', cls: 'a', what: `${t.getFullYear() - m.y} years since marrying${s ? ' ' + fullName(s) : ''}` });
+      }
+    }
+    items.sort((a, b) => a.t - b.t);
+    const months = new Map();
+    for (const it of items) {
+      const k = `${MONTHS[it.t.getMonth()]} ${it.t.getFullYear()}`;
+      if (!months.has(k)) months.set(k, []);
+      months.get(k).push(it);
+    }
+    drawLines = null;
+    const body = items.length
+      ? el('div', { className: 'months' }, [...months].map(([k, list]) => el('section', { className: 'month' }, el('h3', {}, k),
+        list.map((it) => el('button', { type: 'button', className: 'cal-item', onclick: () => go(it.p.id, 'family') },
+          el('span', { className: 'cal-day' }, it.t.getDate()),
+          el('span', {}, el('span', { className: `cal-kind ${it.cls}` }, it.kind), el('b', {}, fullName(it.p)), el('span', { className: 'cal-what' }, it.what)))))))
+      : el('div', { className: 'empty-state' }, 'Birthdays and anniversaries appear here once people have full dates, like 1984-06-27.');
+    const counts = [['Birthday', 'birthdays'], ['Anniversary', 'anniversaries'], ['Remembrance', 'remembrance days']]
+      .map(([k, plural]) => `${items.filter((i) => i.kind === k).length} ${plural}`);
+    return { title: 'Family calendar', hint: `The next twelve months · ${counts.join(' · ')}`, chart: body };
+  }
+
   function everyoneView() {
     const q = listFilter.trim().toLowerCase();
     const [key, dir] = listSort;
@@ -377,7 +457,7 @@
       el('thead', {}, el('tr', {}, head('name', 'Name'), head('born', 'Born'), head('place', 'Birthplace'), head('died', 'Died'))),
       el('tbody', {}, rows.slice(0, LIMIT).map((p) => el('tr', { tabIndex: 0, onclick: () => go(p.id, 'family'), onkeydown: (e) => { if (e.key === 'Enter') go(p.id, 'family'); } },
         el('td', {}, el('div', { className: 'who' }, avatar(p), fullName(p), p.maidenName ? el('span', { className: 'muted' }, ` (née ${p.maidenName})`) : null)),
-        el('td', {}, p.birthDate), el('td', {}, p.birthPlace), el('td', {}, p.deathDate))))));
+        el('td', {}, fmtDate(p.birthDate)), el('td', {}, p.birthPlace), el('td', {}, fmtDate(p.deathDate)))))));
     drawLines = null;
     return { title: 'Everyone', hint: `${rows.length} of ${people.length} people · click a row to open their family`,
       chart: el('div', {}, table, rows.length > LIMIT ? el('p', { className: 'tbl-more' }, `Showing the first ${LIMIT}. Filter by name or place to narrow the list.`) : null) };
@@ -415,7 +495,8 @@
     if (!byId.has(focusId)) focusId = defaultFocus();
     if (view === 'descendants' && !byId.has(descRoot)) descRoot = focusId;
     const keepX = viewport.scrollLeft, keepY = viewport.scrollTop;
-    const spec = { whole: wholeView, family: familyView, ancestors: ancestorsView, descendants: descendantsView, everyone: everyoneView }[view]();
+    const spec = { whole: wholeView, family: familyView, ancestors: ancestorsView, descendants: descendantsView, everyone: everyoneView,
+      calendar: calendarView, relationships: relationshipsView }[view]();
     renderBar(spec);
     viewEl.replaceChildren(spec.chart);
     viewport.classList.toggle('pannable', CHART_VIEWS.includes(view));
@@ -436,6 +517,51 @@
     viewport.scrollTop = view !== 'descendants' && below > viewport.clientHeight ? below - viewport.clientHeight * 0.6 : 0;
   }
 
+  /** The person's own events plus key moments in close family's lives, oldest first. */
+  function lifeEvents(p) {
+    const born = yearNum(p.birthDate), died = yearNum(p.deathDate);
+    const out = [];
+    const add = (date, what, where, own, note = '') => {
+      const y = yearNum(date);
+      if (!own && y && ((born && y < born) || (died && y > died))) return;
+      out.push({ date, what, where, own, note, age: y && born && y >= born ? y - born : null });
+    };
+    if (p.birthDate || p.birthPlace) add(p.birthDate, 'Born', p.birthPlace, true);
+    const spouseEvents = p.spouseIds.map(get).filter(Boolean).flatMap((s) => coupleEvents(p, s).map((e) => ({ ...e, with: s })));
+    for (const e of p.events || []) {
+      if ((e.type === 'Marriage' || e.type === 'Divorce') && e.spouseId) continue;
+      const what = e.type === 'Occupation' ? (e.note ? `Worked as ${e.note.replace(/^an? /i, '')}` : 'Occupation')
+        : e.type === 'Education' && e.note ? `Studied at ${e.note}` : e.type;
+      add(e.date, what, e.place, true, e.type === 'Occupation' || e.type === 'Education' ? '' : e.note);
+    }
+    for (const e of spouseEvents) add(e.date, `${e.type === 'Marriage' ? 'Married' : 'Divorced'} ${fullName(e.with)}`, e.place, true, e.note);
+    for (const k of children.get(p.id)) if (k.birthDate) add(k.birthDate, `${relWord('child', k)} ${k.firstName || fullName(k)} born`, k.birthPlace, false);
+    for (const par of p.parentIds.map(get).filter(Boolean)) if (par.deathDate) add(par.deathDate, `${relWord('parent', par)} ${par.firstName || fullName(par)} died`, par.deathPlace, false);
+    for (const s of p.spouseIds.map(get).filter(Boolean)) if (s.deathDate) add(s.deathDate, `${relWord('spouse', s)} ${s.firstName || fullName(s)} died`, s.deathPlace, false);
+    if (p.deathDate || p.deathPlace) add(p.deathDate, 'Died', p.deathPlace, true);
+    const key = (e) => (e.date || '9999').replace(/^(c\.|bef\.|aft\.) /, '');
+    return out.sort((a, b) => key(a).localeCompare(key(b)));
+  }
+
+  function lightbox(p, photos, start) {
+    let i = start;
+    const dlg = el('dialog', { className: 'lightbox' });
+    const show = () => {
+      dlg.replaceChildren(
+        el('img', { src: photos[i], alt: `Photo ${i + 1} of ${fullName(p)}` }),
+        el('div', { className: 'lb-bar' },
+          photos.length > 1 ? el('button', { type: 'button', onclick: () => { i = (i - 1 + photos.length) % photos.length; show(); } }, '← Previous') : null,
+          el('span', {}, `${fullName(p)} · ${i + 1} of ${photos.length}`),
+          photos.length > 1 ? el('button', { type: 'button', onclick: () => { i = (i + 1) % photos.length; show(); } }, 'Next →') : null,
+          el('button', { type: 'button', onclick: () => dlg.close() }, 'Close')));
+    };
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    show();
+    document.body.append(dlg);
+    dlg.showModal();
+  }
+
   function relativeList(title, list) {
     if (!list.length) return null;
     return [el('h3', {}, title), el('ul', { className: 'relative-list' },
@@ -446,11 +572,16 @@
     const p = get(selectedId);
     if (!p) { detailsEl.hidden = true; return; }
     const facts = [
-      ['Born', [p.birthDate, p.birthPlace].filter(Boolean).join(', ')],
-      ['Died', [p.deathDate, p.deathPlace].filter(Boolean).join(', ')],
+      ['Born', [fmtDate(p.birthDate), p.birthPlace].filter(Boolean).join(', ')],
+      ['Died', [fmtDate(p.deathDate), p.deathPlace].filter(Boolean).join(', ')],
       ['Née', p.maidenName],
     ].filter(([, v]) => v);
     const isStart = store.read('ft-start') === p.id;
+    const homeId = store.read('ft-start');
+    const other = get(homeId && homeId !== p.id ? homeId : focusId !== p.id ? focusId : null);
+    const rel = other ? relationship(p, other, { byId, children }) : null;
+    const photos = [...new Set([p.photoUrl, ...(p.photos || [])].filter(Boolean))];
+    const timeline = lifeEvents(p);
     const content = [
       el('button', { className: 'close icon', type: 'button', 'aria-label': 'Close details', onclick: () => { selectedId = null; select(null); } }, '×'),
       avatar(p),
@@ -461,7 +592,16 @@
         el('button', { type: 'button', onclick: () => go(p.id, 'ancestors') }, 'Ancestors'),
         children.get(p.id).length ? el('button', { type: 'button', onclick: () => go(p.id, 'descendants') }, `Descendants (${countDescendants(p.id)})`) : null,
         el('button', { type: 'button', onclick: () => { store.write('ft-start', p.id); renderDetails(); }, disabled: isStart }, isStart ? 'Opens here' : 'Open here next time')),
+      rel && !rel.none ? el('p', { className: 'rel-line' }, rel.far ? `Related to ${fullName(other)} by marriage.`
+        : `${p.firstName || fullName(p)} is ${fullName(other)}’s ${rel.word}.`) : null,
       facts.length ? el('dl', {}, facts.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)])) : null,
+      photos.length ? [el('h3', {}, `Photos (${photos.length})`), el('div', { className: 'gallery' },
+        photos.map((src, i) => el('button', { type: 'button', 'aria-label': `Photo ${i + 1} of ${fullName(p)}`, onclick: () => lightbox(p, photos, i) },
+          el('img', { src, alt: '', loading: 'lazy' }))))] : null,
+      timeline.length ? [el('h3', {}, 'Life events'), el('ol', { className: 'timeline' }, timeline.map((e) => el('li', { className: e.own ? 'own' : '' },
+        el('div', { className: 'when' }, fmtDate(e.date) || 'Date unknown', e.age != null ? ` · age ${e.age}` : ''),
+        el('div', { className: 'what' }, e.what), e.where ? el('div', { className: 'where' }, e.where) : null,
+        e.note ? el('div', { className: 'where' }, e.note) : null)))] : null,
       relativeList('Parents', p.parentIds.map(get).filter(Boolean)),
       relativeList('Spouses & partners', partnersOf(p)),
       relativeList('Siblings', siblingsOf(p)),

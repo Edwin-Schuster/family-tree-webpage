@@ -9,7 +9,9 @@ const { FamilyStore } = require('./lib/store');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SESSION_COOKIE = 'ft_session';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
+const PHOTO_NAME = /^[a-f0-9]{32}\.(jpg|png|gif|webp)$/;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 
@@ -25,6 +27,8 @@ const MIME_TYPES = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 const ROUTES = { '/': 'index.html', '/admin': 'admin.html' };
@@ -45,6 +49,33 @@ function parseCookies(header = '') {
 function sendJson(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': MIME_TYPES['.json'], 'Cache-Control': 'no-store', ...headers });
   res.end(body === undefined ? '' : JSON.stringify(body));
+}
+
+function readBody(req, limit) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(Object.assign(new Error('That file is too large'), { status: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+/** Works out an image's type from its first bytes, so only real photos are stored. */
+function imageType(buf) {
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (buf.length > 6 && /^GIF8[79]a$/.test(buf.subarray(0, 6).toString('latin1'))) return 'gif';
+  if (buf.length > 12 && buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'webp';
+  return null;
 }
 
 function readJsonBody(req) {
@@ -72,9 +103,10 @@ function readJsonBody(req) {
   });
 }
 
-function createApp({ dataFile, seedFile, adminPassword }) {
+function createApp({ dataFile, seedFile, adminPassword, photosDir, backupDir }) {
   if (!adminPassword) throw new Error('adminPassword is required');
-  const store = new FamilyStore(dataFile, seedFile);
+  const store = new FamilyStore(dataFile, seedFile, { backupDir });
+  const photoDir = photosDir || path.join(path.dirname(dataFile), 'photos');
   const passwordHash = sha256(adminPassword);
   const sessions = new Map();
   const loginAttempts = new Map();
@@ -159,6 +191,25 @@ function createApp({ dataFile, seedFile, adminPassword }) {
       return sendJson(res, 200, store.replaceAll(await readJsonBody(req)));
     }
 
+    if (pathname === '/api/photos' && method === 'POST') {
+      const buf = await readBody(req, MAX_PHOTO_BYTES);
+      const ext = imageType(buf);
+      if (!ext) return sendJson(res, 400, { error: 'That file isn\'t a JPEG, PNG, GIF or WebP image' });
+      fs.mkdirSync(photoDir, { recursive: true });
+      const name = `${crypto.randomBytes(16).toString('hex')}.${ext}`;
+      fs.writeFileSync(path.join(photoDir, name), buf);
+      return sendJson(res, 201, { url: `/photos/${name}` });
+    }
+
+    if (pathname === '/api/backups' && method === 'GET') {
+      return sendJson(res, 200, { backups: store.listBackups() });
+    }
+
+    if (pathname === '/api/backups/restore' && method === 'POST') {
+      const body = await readJsonBody(req);
+      return sendJson(res, 200, store.restoreBackup(body.name));
+    }
+
     if (pathname === '/api/people' && method === 'POST') {
       return sendJson(res, 201, store.create(await readJsonBody(req)));
     }
@@ -175,11 +226,30 @@ function createApp({ dataFile, seedFile, adminPassword }) {
     return sendJson(res, 404, { error: 'Not found' });
   }
 
+  function servePhoto(req, res, name) {
+    if (!PHOTO_NAME.test(name)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Not found');
+    }
+    fs.readFile(path.join(photoDir, name), (err, content) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('Not found');
+      }
+      res.writeHead(200, {
+        'Content-Type': MIME_TYPES['.' + name.split('.').pop()],
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      });
+      res.end(req.method === 'HEAD' ? undefined : content);
+    });
+  }
+
   function serveStatic(req, res, pathname) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' });
       return res.end();
     }
+    if (pathname.startsWith('/photos/')) return servePhoto(req, res, pathname.slice('/photos/'.length));
     const relative = ROUTES[pathname] || pathname.slice(1);
     const filePath = path.normalize(path.join(PUBLIC_DIR, relative));
     if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
@@ -205,7 +275,7 @@ function createApp({ dataFile, seedFile, adminPassword }) {
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; img-src 'self' https: http: data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'",
+      "default-src 'self'; img-src 'self' https: http: data: blob:; style-src 'self'; script-src 'self'; frame-ancestors 'none'",
     );
 
     let pathname;
@@ -235,6 +305,8 @@ if (require.main === module) {
   }
   const server = createApp({
     dataFile: process.env.DATA_FILE || path.join(__dirname, 'data', 'family.json'),
+    photosDir: process.env.PHOTOS_DIR,
+    backupDir: process.env.BACKUP_DIR,
     seedFile: path.join(__dirname, 'data', 'family.sample.json'),
     adminPassword,
   });

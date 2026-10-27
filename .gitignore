@@ -2,3 +2,5 @@ node_modules/
 data/family.json
 data/*.tmp
 .env
+data/photos/
+data/backups/

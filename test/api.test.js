@@ -161,3 +161,71 @@ test('logout invalidates the session', async () => {
   const res = await request('GET', '/api/csrf', auth);
   assert.equal(res.status, 401);
 });
+
+const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000' +
+  '1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082', 'hex');
+
+async function upload(auth, buf, type) {
+  const res = await fetch(`${baseUrl}/api/photos`, {
+    method: 'POST', body: buf, headers: { 'Content-Type': type, Cookie: auth.cookie, 'X-CSRF-Token': auth.csrf },
+  });
+  return { status: res.status, body: await res.json() };
+}
+
+test('uploads photos and serves them back', async () => {
+  const auth = await login();
+  const res = await upload(auth, PNG, 'image/png');
+  assert.equal(res.status, 201);
+  assert.match(res.body.url, /^\/photos\/[a-f0-9]{32}\.png$/);
+  const img = await fetch(baseUrl + res.body.url);
+  assert.equal(img.status, 200);
+  assert.equal(img.headers.get('content-type'), 'image/png');
+  assert.deepEqual(Buffer.from(await img.arrayBuffer()), PNG);
+
+  const saved = await request('PUT', '/api/people/p1', { ...auth, body: { photoUrl: res.body.url, photos: ['https://example.com/a.jpg'] } });
+  assert.equal(saved.status, 200);
+  assert.deepEqual(saved.body.photos, ['https://example.com/a.jpg']);
+});
+
+test('rejects uploads that are not images, and anonymous uploads', async () => {
+  const auth = await login();
+  assert.equal((await upload(auth, Buffer.from('<svg onload=alert(1)>'), 'image/svg+xml')).status, 400);
+  const anon = await fetch(`${baseUrl}/api/photos`, { method: 'POST', body: PNG, headers: { 'Content-Type': 'image/png' } });
+  assert.equal(anon.status, 401);
+  assert.equal((await fetch(`${baseUrl}/photos/../family.json`)).status, 404);
+});
+
+test('stores life events and validates them', async () => {
+  const auth = await login();
+  const ok = await request('PUT', '/api/people/p1', { ...auth, body: { events: [
+    { type: 'Marriage', date: '1947-06-21', place: 'York, England', spouseId: 'p2' },
+    { type: 'Occupation', note: 'Carpenter' },
+  ] } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.events.length, 2);
+  assert.equal(ok.body.events[1].spouseId, '');
+
+  for (const events of [[{ type: 'Party' }], [{ type: 'Marriage', spouseId: 'nobody' }], 'nope']) {
+    const res = await request('PUT', '/api/people/p1', { ...auth, body: { events } });
+    assert.equal(res.status, 400, JSON.stringify(events));
+  }
+});
+
+test('backs up before an import and can restore it', async () => {
+  const auth = await login();
+  const before = (await request('GET', '/api/family')).body;
+  await request('POST', '/api/import', { ...auth, body: { title: 'Tiny', people: [{ id: 'x', firstName: 'Solo' }] } });
+  assert.equal((await request('GET', '/api/family')).body.people.length, 1);
+
+  const { body } = await request('GET', '/api/backups', auth);
+  const importBackup = body.backups.find((b) => b.name.includes('-import'));
+  assert.ok(importBackup, 'an import backup exists');
+  assert.equal(importBackup.people, before.people.length);
+
+  const restored = await request('POST', '/api/backups/restore', { ...auth, body: { name: importBackup.name } });
+  assert.equal(restored.status, 200);
+  assert.deepEqual((await request('GET', '/api/family')).body, before);
+
+  const bad = await request('POST', '/api/backups/restore', { ...auth, body: { name: '../family.json' } });
+  assert.equal(bad.status, 400);
+});

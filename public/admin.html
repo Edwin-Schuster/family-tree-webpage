@@ -32,6 +32,8 @@
         <button id="export-btn" type="button">Export JSON</button>
         <button id="import-btn" type="button">Import JSON</button>
         <input id="import-file" type="file" accept="application/json,.json" hidden>
+        <button id="check-btn" type="button">Check tree</button>
+        <button id="backups-btn" type="button">Backups</button>
         <button id="logout-btn" type="button">Log out</button>
       </div>
     </header>
@@ -70,8 +72,18 @@
             <div><label for="birthPlace">Birthplace</label><input id="birthPlace" name="birthPlace" maxlength="200"></div>
             <div><label for="deathDate">Death date</label><input id="deathDate" name="deathDate" maxlength="40" placeholder="Leave blank if living"></div>
             <div><label for="deathPlace">Place of death</label><input id="deathPlace" name="deathPlace" maxlength="200"></div>
-            <div class="full"><label for="photoUrl">Photo URL</label><input id="photoUrl" name="photoUrl" maxlength="2000" placeholder="https://…"></div>
-            <div class="full"><label for="bio">Biography / notes</label><textarea id="bio" name="bio" maxlength="5000"></textarea></div>
+            <div class="full">
+              <span class="label">Photos</span>
+              <div class="photo-grid" id="photo-grid"></div>
+              <div class="photo-actions">
+                <button type="button" id="photo-upload-btn">Upload photos</button>
+                <input type="file" id="photo-file" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
+                <input id="photo-link" maxlength="2000" placeholder="…or paste a link to a photo" aria-label="Photo link">
+                <button type="button" id="photo-link-btn">Add link</button>
+              </div>
+              <p class="muted small" id="photo-status" role="status"></p>
+            </div>
+            <div class="full"><label for="bio">Story & notes</label><textarea id="bio" name="bio" maxlength="8000"></textarea></div>
             <div class="full">
               <label for="parent-add">Parents (up to two)</label>
               <div class="chips" id="parent-chips"></div>
@@ -88,6 +100,12 @@
                 <button type="button" id="spouse-add-btn">Add</button>
               </div>
             </div>
+            <div class="full">
+              <span class="label">Life events</span>
+              <p class="muted small">Marriages, jobs, homes, military service, immigration, burial… Dates like 1936-05-30 also appear in the family calendar.</p>
+              <div id="events"></div>
+              <button type="button" id="event-add">+ Add event</button>
+            </div>
           </div>
           <p class="error" id="form-error" role="alert"></p>
           <div class="form-actions">
@@ -100,6 +118,11 @@
       </main>
     </div>
   </div>
+
+  <dialog class="tool-dialog" id="tool-dialog" aria-labelledby="tool-title">
+    <header><h2 id="tool-title"></h2><button type="button" class="icon" id="tool-close" aria-label="Close">×</button></header>
+    <div id="tool-body"></div>
+  </dialog>
 
   <div class="toast" id="toast" role="status" hidden></div>
 

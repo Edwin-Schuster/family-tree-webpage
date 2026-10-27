@@ -3,10 +3,18 @@
 A self-hosted family tree website with a password-protected editor. It has no
 dependencies: just Node.js 18+ and a JSON file for storage.
 
-- **Public tree (`/`)** – an interactive descendant chart. Click anyone to see
-  their details, parents, partners, siblings and children. You can search,
-  zoom, and show a single person's branch. Works in light and dark mode and on
-  phones.
+- **Public tree (`/`)** – built to stay readable with hundreds of people:
+  - **Family** – one person in the centre with grandparents, parents,
+    siblings, partners and children. Click anyone to step to them.
+  - **Ancestors** – a four-generation pedigree.
+  - **Descendants** – a branching chart that opens three generations at a
+    time; each couple has a button to show or hide their branch.
+  - **Everyone** – a sortable, filterable list of every person.
+
+  Find anyone from the search box, drag to pan, zoom (or Ctrl/⌘ + scroll), and
+  use **Fit** to see a whole chart. The page remembers where you were, and
+  "Open here next time" sets the person it starts on. Works in light and dark
+  mode and on phones.
 - **Editor (`/admin`)** – log in to add, edit and delete people, link parents
   and spouses, add a child, spouse or parent in one click, rename the site,
   and import or export the whole tree as JSON.

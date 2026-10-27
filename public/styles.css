@@ -255,6 +255,11 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
 .dtree > ul > li { padding-top: 0; }
 .dtree > ul > li::before, .dtree > ul > li::after { display: none; }
 .dtree ul ul::before { content: ''; position: absolute; top: 0; left: 50%; height: 30px; border-left: 1.8px solid var(--line); }
+.main-lines > ul + ul { margin-top: 70px; }
+.inlaws { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); }
+.inlaws h3 { margin: 0 0 18px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.inlaw-grid { display: flex; flex-wrap: wrap; gap: 28px 36px; max-width: 2400px; }
+.inlaw .dtree { min-width: 0; }
 .couple { display: flex; align-items: center; position: relative; }
 .couple .wed { width: 14px; border-top: 1.8px dashed var(--line); }
 .tog {

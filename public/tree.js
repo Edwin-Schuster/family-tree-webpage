@@ -4,8 +4,8 @@
   const { el, fullName, lifespan, avatar, byBirth, indexPeople } = window.FT;
   const $ = (id) => document.getElementById(id);
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const VIEWS = [['family', 'Family'], ['ancestors', 'Ancestors'], ['descendants', 'Descendants'], ['everyone', 'Everyone']];
-  const CHART_VIEWS = ['family', 'ancestors', 'descendants'];
+  const VIEWS = [['whole', 'Whole tree'], ['family', 'Family'], ['ancestors', 'Ancestors'], ['descendants', 'Descendants'], ['everyone', 'Everyone']];
+  const CHART_VIEWS = ['whole', 'family', 'ancestors', 'descendants'];
 
   const viewport = $('viewport');
   const viewEl = $('view');
@@ -17,7 +17,7 @@
   let people = [];
   let byId = new Map();
   let children = new Map();
-  let view = 'family';
+  let view = 'whole';
   let focusId = null;
   let selectedId = null;
   let zoom = 1;
@@ -114,6 +114,7 @@
   function saveHash() {
     try { history.replaceState(null, '', `#${view}${focusId ? '/' + encodeURIComponent(focusId) : ''}`); } catch { /* ignore */ }
     if (focusId) store.write('ft-last', focusId);
+    store.write('ft-view', view);
   }
   function readHash() {
     const [v, id] = location.hash.slice(1).split('/');
@@ -195,7 +196,7 @@
       el('button', { type: 'button', onclick: fitToScreen }, 'Fit'));
   }
   function setZoom(z) {
-    zoom = Math.min(1.6, Math.max(0.2, Math.round(z * 100) / 100));
+    zoom = Math.min(1.6, Math.max(0.08, Math.round(z * 100) / 100));
     const chart = viewEl.querySelector('.chart');
     if (chart) chart.style.zoom = zoom;
     const label = $('zoom-value');
@@ -291,16 +292,15 @@
     return { title: `Ancestors of ${fullName(f)}`, hint: `Four generations · earliest known: ${fullName(top)}${top.birthDate ? ` (${lifespan(top)})` : ''}`, chart };
   }
 
-  function descendantsView() {
-    const root = get(descRoot) || get(focusId);
-    const placed = new Set();
-    const isOpen = (id, gen) => (gen < depth) !== toggled.has(id);
+  /** Draws a person, their partners and their descendants. `placed` is shared across calls, so anyone
+   *  already drawn appears again only as a dashed "shown above" box. */
+  function makeBrancher(placed, isOpen, pick, isRoot) {
     const branch = (p, gen) => {
       placed.add(p.id);
       const partners = partnersOf(p);
-      const unit = el('div', { className: 'couple' }, pbox(p, { onpick: select, focus: p.id === root.id }));
+      const unit = el('div', { className: 'couple' }, pbox(p, { onpick: pick, focus: isRoot(p.id) }));
       for (const s of partners) {
-        unit.append(el('span', { className: 'wed', 'aria-hidden': 'true' }), pbox(s, { onpick: select }));
+        unit.append(el('span', { className: 'wed', 'aria-hidden': 'true' }), pbox(s, { onpick: pick }));
         placed.add(s.id);
       }
       const li = el('li', {}, unit);
@@ -316,14 +316,51 @@
         for (const s of partners) ordered.push(...mine.filter((k) => k.parentIds.includes(s.id) && !ordered.includes(k)));
         ordered.push(...mine.filter((k) => !ordered.includes(k)));
         li.append(el('ul', {}, ordered.map((k) => placed.has(k.id)
-          ? el('li', {}, el('div', { className: 'couple' }, pbox(k, { ref: true, onpick: select })))
+          ? el('li', {}, el('div', { className: 'couple' }, pbox(k, { ref: true, onpick: pick })))
           : branch(k, gen + 1))));
       }
       return li;
     };
+    return branch;
+  }
+
+  function descendantsView() {
+    const root = get(descRoot) || get(focusId);
+    const branch = makeBrancher(new Set(), (id, gen) => (gen < depth) !== toggled.has(id), select, (id) => id === root.id);
     const chart = el('div', { className: 'chart' }, el('div', { className: 'dtree' }, el('ul', {}, branch(root, 0))));
     drawLines = null;
     return { title: `Descendants of ${fullName(root)}`, hint: `${countDescendants(root.id)} descendants · click a person for details`, chart };
+  }
+
+  /** Everyone at once, like the original page: each family line from its earliest ancestor, fully open. */
+  function wholeView() {
+    const placed = new Set();
+    const pickHere = (id) => { focusId = id; select(id); saveHash(); };
+    const branch = makeBrancher(placed, (id) => !toggled.has(id), pickHere, () => false);
+    const hasParents = (p) => p.parentIds.some((id) => byId.has(id));
+    const roots = people.filter((p) => !hasParents(p) && !partnersOf(p).some(hasParents))
+      .sort((a, b) => countDescendants(b.id) - countDescendants(a.id) || byBirth(a, b));
+    const main = [];
+    const inLaws = [];
+    const later = [];
+    for (const r of roots) {
+      if (placed.has(r.id)) continue;
+      // Parents of someone who married in: their child is already drawn in a bigger family line, so these small
+      // families go in a grid below instead of stretching the main chart sideways.
+      if (children.get(r.id).length && children.get(r.id).every((k) => placed.has(k.id))) { later.push(r); continue; }
+      main.push(el('ul', {}, branch(r, 0)));
+    }
+    for (const r of [...later, ...people.filter((x) => !hasParents(x))].sort(byBirth)) {
+      if (placed.has(r.id)) continue;
+      inLaws.push(el('div', { className: 'inlaw' }, el('div', { className: 'dtree' }, el('ul', {}, branch(r, 0)))));
+    }
+    const chart = el('div', { className: 'chart whole' },
+      el('div', { className: 'dtree main-lines' }, main),
+      inLaws.length ? el('section', { className: 'inlaws' },
+        el('h3', {}, `Parents of people who married into the family (${inLaws.length})`),
+        el('div', { className: 'inlaw-grid' }, inLaws)) : null);
+    drawLines = null;
+    return { title: 'Whole tree', hint: `Everyone, from each family's earliest ancestor · ${people.length} people · use Fit or search to find your way`, chart };
   }
 
   function everyoneView() {
@@ -378,7 +415,7 @@
     if (!byId.has(focusId)) focusId = defaultFocus();
     if (view === 'descendants' && !byId.has(descRoot)) descRoot = focusId;
     const keepX = viewport.scrollLeft, keepY = viewport.scrollTop;
-    const spec = { family: familyView, ancestors: ancestorsView, descendants: descendantsView, everyone: everyoneView }[view]();
+    const spec = { whole: wholeView, family: familyView, ancestors: ancestorsView, descendants: descendantsView, everyone: everyoneView }[view]();
     renderBar(spec);
     viewEl.replaceChildren(spec.chart);
     viewport.classList.toggle('pannable', CHART_VIEWS.includes(view));
@@ -439,7 +476,7 @@
   function renderTabs() {
     $('tabs').replaceChildren(...VIEWS.map(([k, label]) => el('button', {
       type: 'button', role: 'tab', 'aria-selected': String(view === k),
-      onclick: () => { view = k; if (k === 'descendants') { descRoot = focusId; toggled.clear(); } render(true); },
+      onclick: () => { view = k; toggled.clear(); if (k === 'descendants') descRoot = focusId; render(true); },
     }, label)));
   }
 
@@ -524,6 +561,7 @@
       document.title = data.title;
       const years = people.map((p) => Number((/\d{4}/.exec(p.birthDate || '') || [])[0])).filter(Boolean);
       $('stats').textContent = `${people.length} people${years.length ? ` · ${Math.min(...years)}–${Math.max(...years)}` : ''}`;
+      view = VIEWS.some(([k]) => k === store.read('ft-view')) ? store.read('ft-view') : 'whole';
       readHash();
       if (!byId.has(focusId) && people.length) focusId = defaultFocus();
       selectedId = null;

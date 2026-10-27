@@ -4,6 +4,8 @@ A self-hosted family tree website with a password-protected editor. It has no
 dependencies: just Node.js 18+ and a JSON file for storage.
 
 - **Public tree (`/`)** – built to stay readable with hundreds of people:
+  - **Whole tree** – everyone on one chart, each family line from its earliest
+    ancestor, with the parents of people who married in grouped underneath.
   - **Family** – one person in the centre with grandparents, parents,
     siblings, partners and children. Click anyone to step to them.
   - **Ancestors** – a four-generation pedigree.

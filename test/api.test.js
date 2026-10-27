@@ -229,3 +229,36 @@ test('backs up before an import and can restore it', async () => {
   const bad = await request('POST', '/api/backups/restore', { ...auth, body: { name: '../family.json' } });
   assert.equal(bad.status, 400);
 });
+
+const { buildCalendar, fold } = require('../lib/calendar');
+
+test('calendar feed lists yearly birthdays and anniversaries', async () => {
+  const res = await fetch(`${baseUrl}/calendar.ics`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /^text\/calendar/);
+  const body = await res.text();
+  assert.ok(body.startsWith('BEGIN:VCALENDAR\r\n') && body.endsWith('END:VCALENDAR\r\n'));
+  assert.match(body, /SUMMARY:🎂 Robert Whitaker’s birthday/);          // living
+  assert.doesNotMatch(body, /Harold Whitaker’s birthday/);              // died 1998
+  assert.match(body, /RRULE:FREQ=YEARLY/);
+  for (const line of body.split('\r\n')) assert.ok(Buffer.byteLength(line) <= 75, line);
+});
+
+test('calendar builder handles weddings, remembrance, leap days and escaping', () => {
+  const now = new Date('2026-10-27T12:00:00Z');
+  const data = { title: 'Test, Family', people: [
+    { id: 'a', firstName: 'Ann', lastName: 'Lee', birthDate: '1960-02-29', events: [{ type: 'Marriage', date: '1985-06-01', place: 'Ohio; USA', spouseId: 'b' }] },
+    { id: 'b', firstName: 'Bob', lastName: 'Lee', birthDate: '1958-03-03', events: [{ type: 'Marriage', date: '1985-06-01', spouseId: 'a' }] },
+    { id: 'c', firstName: 'Cy', lastName: 'Lee', birthDate: '1900-01-01', deathDate: '1970-05-05', events: [] },
+  ] };
+  const unfold = (t) => t.replace(/\r\n /g, '');
+  const plain = unfold(buildCalendar(data, { now }).body);
+  assert.equal((plain.match(/BEGIN:VEVENT/g) || []).length, 3, 'two birthdays + one shared wedding');
+  assert.match(plain, /BYMONTH=2;BYMONTHDAY=-1/);
+  assert.match(plain, /X-WR-CALNAME:Test\\, Family/);
+  assert.match(plain, /in Ohio\\; USA/);
+  assert.doesNotMatch(plain, /Remembering/);
+  const all = unfold(buildCalendar(data, { now, remembrance: true }).body);
+  assert.match(all, /Remembering Cy Lee/);
+  assert.equal(fold('x'.repeat(200)).split('\r\n ').map((l) => l.length).join(','), '75,74,51');
+});

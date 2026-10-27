@@ -362,6 +362,12 @@ dialog.tool-dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 .rel-line { margin: 10px 0 0; padding: 8px 10px; background: var(--accent-soft); border-radius: 8px; font-size: 0.93rem; }
 
 /* calendar */
+.cal-help { max-width: 760px; margin: 0 0 18px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-nested); line-height: 1.55; }
+.cal-help p { margin: 8px 0 0; }
+.view-bar .check { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--text); font-weight: 400; cursor: pointer; }
+.view-bar .check input { width: 16px; height: 16px; min-height: 0; padding: 0; accent-color: var(--color-ink); }
+.button.primary { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-on-ink); }
+.button.primary:hover { background: var(--color-ink-soft); }
 .months { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
 .month { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
 .month h3 { margin: 0 0 8px; font-family: var(--font-display); font-weight: normal; font-size: 1.1rem; }

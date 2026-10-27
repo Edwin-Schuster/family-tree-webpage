@@ -53,6 +53,17 @@ On first run, `data/family.json` is created from the fictional sample family in
 `data/family.json` is git-ignored, so your real family data stays out of the
 repository. Back it up with **Export JSON** in the editor.
 
+## Calendar subscription
+
+`/calendar.ics` is a live iCalendar feed of living people's birthdays and
+wedding anniversaries, each repeating yearly (add `?remembrance=1` to include
+death anniversaries and past couples' anniversaries). The **Calendar** tab has
+**Add to Apple Calendar** and **Add to Google Calendar** buttons, plus **Copy
+link** for anything else (Outlook: *Add calendar → Subscribe from web*; Google:
+*Other calendars → From URL*). Subscribed calendars re-check the feed every few
+hours, so new dates appear on their own. Google Calendar and phones can only
+reach the feed when the site is online at a public address.
+
 ## Backups
 
 A copy of `family.json` is saved to `data/backups/` before changes (at most

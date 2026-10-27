@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { FamilyStore } = require('./lib/store');
+const { buildCalendar } = require('./lib/calendar');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SESSION_COOKIE = 'ft_session';
@@ -285,6 +286,16 @@ function createApp({ dataFile, seedFile, adminPassword, photosDir, backupDir }) 
       return sendJson(res, 400, { error: 'Bad request' });
     }
 
+    if (pathname === '/calendar.ics' && (req.method === 'GET' || req.method === 'HEAD')) {
+      const query = new URL(req.url, 'http://localhost').searchParams;
+      const { body } = buildCalendar(store.getAll(), { remembrance: query.get('remembrance') === '1' });
+      res.writeHead(200, {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': 'inline; filename="family-calendar.ics"',
+        'Cache-Control': 'public, max-age=900',
+      });
+      return res.end(req.method === 'HEAD' ? undefined : body);
+    }
     if (!pathname.startsWith('/api/')) return serveStatic(req, res, pathname);
     try {
       await handleApi(req, res, pathname);

@@ -440,7 +440,12 @@
       : el('div', { className: 'empty-state' }, 'Birthdays and anniversaries appear here once people have full dates, like 1984-06-27.');
     const counts = [['Birthday', 'birthdays'], ['Anniversary', 'anniversaries'], ['Remembrance', 'remembrance days']]
       .map(([k, plural]) => `${items.filter((i) => i.kind === k).length} ${plural}`);
-    return { title: 'Family calendar', hint: `The next twelve months · ${counts.join(' · ')}`, chart: body };
+    const local = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+    const help = el('div', { className: 'cal-help' },
+      el('b', {}, 'Keep these dates in your own calendar. '),
+      'Subscribing adds every birthday and wedding anniversary as a yearly reminder, and your calendar re-checks this site every few hours, so new dates show up on their own.',
+      local ? el('p', { className: 'muted' }, 'This copy runs on your own computer, so only Apple Calendar on this computer can reach it. Google Calendar and your phone need the site online at a public address, such as on your VPS. Subscribe from there once it’s up.') : null);
+    return { title: 'Family calendar', hint: `The next twelve months · ${counts.join(' · ')}`, chart: el('div', {}, help, body) };
   }
 
   function everyoneView() {
@@ -476,6 +481,25 @@
           [[2, '2 generations'], [3, '3 generations'], [4, '4 generations'], [6, '6 generations'], [99, 'All generations']]
             .map(([v, t]) => el('option', { value: v, selected: depth === v }, t))),
         el('button', { type: 'button', onclick: () => { const top = oldestAncestor(get(focusId)); descRoot = top.id; toggled.clear(); renderView(true); } }, 'From earliest ancestor'));
+    }
+    if (view === 'calendar') {
+      const withRemembrance = store.read('ft-cal-remembrance') === '1';
+      const feed = `${location.origin}/calendar.ics${withRemembrance ? '?remembrance=1' : ''}`;
+      const webcal = feed.replace(/^https?:/, 'webcal:');
+      const copy = async (e) => {
+        const btn = e.currentTarget;
+        try { await navigator.clipboard.writeText(feed); btn.textContent = 'Link copied'; }
+        catch { window.prompt('Copy this calendar link:', feed); }
+        setTimeout(() => { btn.textContent = 'Copy link'; }, 2000);
+      };
+      controls.push(
+        el('label', { className: 'check' },
+          el('input', { type: 'checkbox', id: 'cal-remembrance', checked: withRemembrance,
+            onchange: (e) => { store.write('ft-cal-remembrance', e.target.checked ? '1' : '0'); renderView(false); } }),
+          'Include remembrance days'),
+        el('a', { className: 'button primary', href: webcal }, 'Add to Apple Calendar'),
+        el('a', { className: 'button', href: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}`, target: '_blank', rel: 'noopener' }, 'Add to Google Calendar'),
+        el('button', { type: 'button', onclick: copy }, 'Copy link'));
     }
     if (view === 'everyone') {
       controls.push(el('input', { id: 'list-filter', type: 'search', placeholder: 'Filter by name or place', value: listFilter,

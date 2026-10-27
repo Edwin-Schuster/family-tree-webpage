@@ -392,6 +392,19 @@ dialog.lightbox::backdrop { background: rgba(0, 0, 0, 0.85); }
 dialog.lightbox img { display: block; max-width: 100%; max-height: 80vh; margin: 0 auto; border-radius: 10px; }
 .lb-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin-top: 10px; color: #fff; }
 
+/* drag handle on the details panel's left edge */
+.panel-resizer {
+  flex: none; width: 9px; margin: 0 -4px; position: relative; z-index: 6; cursor: col-resize; touch-action: none;
+}
+.panel-resizer::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 1px; background: var(--border); transition: background-color 0.12s ease, width 0.12s ease, left 0.12s ease;
+}
+.panel-resizer:hover::after, .panel-resizer:focus-visible::after, body.resizing .panel-resizer::after { left: 3px; width: 3px; background: var(--muted); }
+.panel-resizer:focus-visible { outline: none; }
+.tree-layout:has(.details[hidden]) .panel-resizer { display: none; }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing .tree-viewport { pointer-events: none; }
+
 /* Details panel */
 .details {
   width: 360px;
@@ -417,6 +430,8 @@ dialog.lightbox img { display: block; max-width: 100%; max-height: 80vh; margin:
 .subtitle { color: var(--muted); margin: 0; }
 
 @media (max-width: 760px) {
+  .panel-resizer { display: none; }
+  .details { width: auto !important; }
   .details {
     position: absolute;
     inset: auto 0 0 0;
@@ -591,7 +606,7 @@ dialog.lightbox img { display: block; max-width: 100%; max-height: 80vh; margin:
 .tog.closed { border-style: solid; background: var(--color-ink-soft); color: var(--color-on-ink); border-color: var(--color-ink-soft); }
 
 /* details panel = sidebar surface */
-.details { background: var(--surface-alt); border-left: 1px solid var(--border); padding: 20px; }
+.details { background: var(--surface-alt); border-left: 0; padding: 20px; }
 .details h2 { font-family: var(--font-geist); font-weight: 600; font-size: 24px; letter-spacing: -0.025em; line-height: 1.25; }
 .details h3 { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; }
 .details .goto .edit-person { min-height: 30px; padding: 0 12px; font-size: 13px; background: var(--color-ink); border-color: var(--color-ink); color: var(--color-on-ink); }

@@ -690,6 +690,42 @@
   window.addEventListener('hashchange', () => { readHash(); render(true); });
   new ResizeObserver(() => drawLines && drawLines()).observe(viewEl);
 
+  // ---------- resizable details panel ----------
+  const resizer = $('panel-resizer');
+  const PANEL_MIN = 260, PANEL_DEFAULT = 360;
+  const panelMax = () => Math.max(PANEL_MIN, Math.min(900, Math.round(window.innerWidth * 0.7)));
+  function setPanelWidth(w, save = true) {
+    const width = Math.round(Math.min(panelMax(), Math.max(PANEL_MIN, w)));
+    detailsEl.style.width = `${width}px`;
+    resizer.setAttribute('aria-valuenow', String(width));
+    resizer.setAttribute('aria-valuemin', String(PANEL_MIN));
+    resizer.setAttribute('aria-valuemax', String(panelMax()));
+    if (save) store.write('ft-panel-width', String(width));
+  }
+  setPanelWidth(Number(store.read('ft-panel-width')) || PANEL_DEFAULT, false);
+  let resizing = null;
+  resizer.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    resizing = { x: e.clientX, w: detailsEl.offsetWidth };
+    resizer.setPointerCapture(e.pointerId);
+    document.body.classList.add('resizing');
+  });
+  resizer.addEventListener('pointermove', (e) => {
+    if (resizing) setPanelWidth(resizing.w + (resizing.x - e.clientX));
+  });
+  const stopResize = () => { resizing = null; document.body.classList.remove('resizing'); };
+  resizer.addEventListener('pointerup', stopResize);
+  resizer.addEventListener('pointercancel', stopResize);
+  resizer.addEventListener('dblclick', () => setPanelWidth(PANEL_DEFAULT));
+  resizer.addEventListener('keydown', (e) => {
+    const step = e.shiftKey ? 80 : 20;
+    if (e.key === 'ArrowLeft') { setPanelWidth(detailsEl.offsetWidth + step); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { setPanelWidth(detailsEl.offsetWidth - step); e.preventDefault(); }
+    else if (e.key === 'Home') { setPanelWidth(PANEL_DEFAULT); e.preventDefault(); }
+  });
+  window.addEventListener('resize', () => setPanelWidth(detailsEl.offsetWidth || PANEL_DEFAULT, false));
+
   // ---------- load ----------
   async function load() {
     try {

@@ -355,6 +355,11 @@ dialog.tool-dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
   .event-row > :nth-child(4) { grid-column: auto; }
 }
 
+.obit-search { padding: 12px 14px; border: 1px dashed var(--border-strong); border-radius: var(--radius-nested); }
+.obit-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.obit-links .button { min-height: 32px; font-size: 13px; }
+.obit-search p { margin: 0; }
+
 /* how are we related */
 .rel-card { max-width: 640px; display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
 .rel-card .swap { justify-self: start; }

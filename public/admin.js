@@ -142,6 +142,7 @@
     $('form-error').textContent = '';
     $('photo-status').textContent = '';
     renderPhotos();
+    renderObituarySearch();
     renderRelations();
     dirty = false;
   }
@@ -230,6 +231,39 @@
     fillSelect('spouse-add', spouseExclude, 'Choose a spouse or partner…');
     renderEvents();
   }
+
+  // ---------- find an obituary ----------
+
+  /** Search links built from the form, for anyone with a death date. */
+  function renderObituarySearch() {
+    const box = $('obit-search');
+    const died = $('deathDate').value.trim();
+    const year = (/\d{4}/.exec(died) || [])[0];
+    const last = $('lastName').value.trim();
+    const rawFirst = $('firstName').value.trim();
+    if (!died || !last || !rawFirst) { box.hidden = true; return; }
+    const nick = (/"([^"]+)"/.exec(rawFirst) || [])[1];
+    const first = rawFirst.replace(/\s*"[^"]*"/, '').split(/\s+/)[0];
+    // "Home, Cleveland, Cuyahoga, OH" -> "Cleveland OH": keep the town and the state.
+    const parts = $('deathPlace').value.split(',').map((x) => x.trim()).filter((x) => x && !/\b(home|hospital|center|centre|hospice|nursing)\b/i.test(x));
+    const place = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0] || '';
+    const names = [`"${first} ${last}"`, nick && nick !== first ? `"${nick} ${last}"` : null].filter(Boolean);
+    const q = [names.length > 1 ? `(${names.join(' OR ')})` : names[0], 'obituary', year, place].filter(Boolean).join(' ');
+    const enc = encodeURIComponent;
+    const links = [
+      ['Google', `https://www.google.com/search?q=${enc(q)}`],
+      ['Google Images', `https://www.google.com/search?tbm=isch&q=${enc(q)}`],
+      ['Legacy.com', `https://www.legacy.com/obituaries/name/${enc(last.toLowerCase())}/${enc(first.toLowerCase())}`],
+      ['Find a Grave', `https://www.findagrave.com/memorial/search?firstname=${enc(first)}&lastname=${enc(last)}${year ? `&deathyear=${year}&deathyearfilter=exact` : ''}`],
+    ];
+    const maiden = $('maidenName').value.trim();
+    box.replaceChildren(
+      el('span', { className: 'label' }, 'Find obituary'),
+      el('div', { className: 'obit-links' }, links.map(([label, href]) => el('a', { className: 'button', href, target: '_blank', rel: 'noopener' }, `${label} ↗`))),
+      el('p', { className: 'muted small' }, `Searching for ${q}${maiden && maiden !== last ? `. ${$('gender').value === 'female' ? 'Her' : $('gender').value === 'male' ? 'His' : 'Their'} birth surname, ${maiden}, often appears in the text too` : ''}. Found a photo? Right-click it, choose “Save image as…”, then use Upload photos below.`));
+    box.hidden = false;
+  }
+  for (const id of ['firstName', 'lastName', 'maidenName', 'deathDate', 'deathPlace']) $(id).addEventListener('input', renderObituarySearch);
 
   // ---------- photos ----------
 

@@ -591,7 +591,8 @@
         el('button', { type: 'button', onclick: () => go(p.id, 'family') }, 'Family'),
         el('button', { type: 'button', onclick: () => go(p.id, 'ancestors') }, 'Ancestors'),
         children.get(p.id).length ? el('button', { type: 'button', onclick: () => go(p.id, 'descendants') }, `Descendants (${countDescendants(p.id)})`) : null,
-        el('button', { type: 'button', onclick: () => { store.write('ft-start', p.id); renderDetails(); }, disabled: isStart }, isStart ? 'Opens here' : 'Open here next time')),
+        el('button', { type: 'button', onclick: () => { store.write('ft-start', p.id); renderDetails(); }, disabled: isStart }, isStart ? 'Opens here' : 'Open here next time'),
+        el('a', { className: 'button edit-person', href: `/admin#edit/${encodeURIComponent(p.id)}` }, 'Edit person')),
       rel && !rel.none ? el('p', { className: 'rel-line' }, rel.far ? `Related to ${fullName(other)} by marriage.`
         : `${p.firstName || fullName(p)} is ${fullName(other)}’s ${rel.word}.`) : null,
       facts.length ? el('dl', {}, facts.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)])) : null,

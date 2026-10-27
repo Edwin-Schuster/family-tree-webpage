@@ -62,7 +62,12 @@
     $('login-view').hidden = true;
     $('editor-view').hidden = false;
     await reload();
-    startNew();
+    // Links from the tree page (/admin#edit/<id>) open that person straight away.
+    const m = /^#edit\/(.+)$/.exec(location.hash);
+    const id = m && decodeURIComponent(m[1]);
+    try { history.replaceState(null, '', location.pathname); } catch { /* ignore */ }
+    if (id && byId(id)) edit(id);
+    else startNew();
   }
 
   $('login-form').addEventListener('submit', async (e) => {

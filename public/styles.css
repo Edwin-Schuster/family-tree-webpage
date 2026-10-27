@@ -594,6 +594,8 @@ dialog.lightbox img { display: block; max-width: 100%; max-height: 80vh; margin:
 .details { background: var(--surface-alt); border-left: 1px solid var(--border); padding: 20px; }
 .details h2 { font-family: var(--font-geist); font-weight: 600; font-size: 24px; letter-spacing: -0.025em; line-height: 1.25; }
 .details h3 { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; }
+.details .goto .edit-person { min-height: 30px; padding: 0 12px; font-size: 13px; background: var(--color-ink); border-color: var(--color-ink); color: var(--color-on-ink); }
+.details .goto .edit-person:hover { background: var(--color-ink-soft); }
 .details .goto button, .relative-list button { min-height: 30px; padding: 0 12px; font-size: 13px; background: var(--surface); }
 .details .bio { font-size: 14px; line-height: 1.6; color: var(--color-body); }
 .rel-line, .rel-answer { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-nested); }
